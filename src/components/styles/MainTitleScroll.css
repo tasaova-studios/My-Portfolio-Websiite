@@ -1,0 +1,110 @@
+.main-title-scroll-section {
+  width: var(--cWidth, 90%);
+  max-width: var(--cMaxWidth, 1400px);
+  margin: 60px auto 40px auto;
+  position: relative;
+  z-index: 5;
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.main-title-scroll-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  font-weight: 500;
+  color: var(--accentColor, #c2a4ff);
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(194, 164, 255, 0.08);
+  border: 1px solid rgba(194, 164, 255, 0.2);
+}
+
+.main-title-scroll-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accentColor, #c2a4ff);
+  box-shadow: 0 0 10px var(--accentColor, #c2a4ff);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+}
+
+.main-scroll-title {
+  margin: 0;
+  font-size: clamp(2.5rem, 7vw, 6.5rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #ffffff;
+  perspective: 1000px;
+  user-select: none;
+}
+
+.main-scroll-title .word {
+  display: inline-block;
+  white-space: nowrap;
+  margin-right: 0.3em;
+}
+
+.main-scroll-title .char {
+  display: inline-block;
+  transform-origin: 50% 100%;
+  will-change: transform, opacity, filter, color;
+  transition: text-shadow 0.3s ease;
+}
+
+.main-scroll-title .char:hover {
+  text-shadow: 0 0 15px rgba(194, 164, 255, 0.8);
+  color: var(--accentColor, #c2a4ff);
+}
+
+.main-scroll-subtitle {
+  margin-top: 24px;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  font-weight: 400;
+  color: rgba(234, 229, 236, 0.8);
+  max-width: 800px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  perspective: 800px;
+}
+
+.main-scroll-subtitle .sub-word {
+  display: inline-block;
+  white-space: nowrap;
+  margin-right: 0.25em;
+}
+
+.main-scroll-subtitle .sub-char {
+  display: inline-block;
+  will-change: transform, opacity, color;
+}
+
+@media only screen and (max-width: 768px) {
+  .main-title-scroll-section {
+    margin: 40px auto 20px auto;
+    padding: 20px 0;
+  }
+  .main-scroll-title {
+    font-size: clamp(2rem, 9vw, 3.5rem);
+  }
+}
