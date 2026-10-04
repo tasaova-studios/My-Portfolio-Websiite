@@ -35,13 +35,17 @@ const InteractiveWave = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Video is paused and strictly controlled by user scroll
     video.pause();
     video.currentTime = 0;
 
+    let targetTime = 0;
+    let isSeeking = false;
+    let scrollVelocity = 0;
+    let lastScrollY = window.scrollY;
+    let scrollTimeout: NodeJS.Timeout;
+
     const onMeta = () => {
       video.pause();
-      video.currentTime = 0;
       setIsVideoReady(true);
       ScrollTrigger.refresh();
     };
@@ -51,84 +55,61 @@ const InteractiveWave = () => {
       onMeta();
     }
 
-    // --- SMOOTH SCROLL SCRUB & VIDEO TIMELINE CONTROL ---
-    let targetTime = 0;
-    let isTicking = false;
-    let scrollVelocity = 0;
-    let lastScrollY = window.scrollY;
-    let scrollTimeout: NodeJS.Timeout;
+    // High-performance smooth seek mechanism:
+    // Only seek when hardware decoder has finished the previous frame
+    const performSeek = () => {
+      if (!video || !video.duration || isNaN(video.duration)) return;
+      if (isSeeking || video.seeking) return;
 
-    const updateVideoTime = () => {
+      const current = video.currentTime;
+      const diff = targetTime - current;
+
+      if (Math.abs(diff) > 0.02) {
+        isSeeking = true;
+        // Apply smooth dampening for cinematic feel
+        const nextTime = Math.min(
+          video.duration - 0.01,
+          Math.max(0, current + diff * 0.5)
+        );
+        video.currentTime = nextTime;
+      }
+    };
+
+    const onSeeked = () => {
+      isSeeking = false;
       if (video && video.duration && !isNaN(video.duration)) {
-        const current = video.currentTime;
-        const diff = targetTime - current;
-
-        if (Math.abs(diff) > 0.005) {
-          video.currentTime = Math.min(
-            video.duration - 0.01,
-            Math.max(0, current + diff * 0.28)
-          );
-          requestAnimationFrame(updateVideoTime);
-        } else {
-          isTicking = false;
+        const diff = Math.abs(video.currentTime - targetTime);
+        if (diff > 0.03) {
+          requestAnimationFrame(performSeek);
         }
-      } else {
-        isTicking = false;
       }
     };
 
-    const requestTick = () => {
-      if (!isTicking) {
-        isTicking = true;
-        requestAnimationFrame(updateVideoTime);
-      }
-    };
+    video.addEventListener("seeked", onSeeked);
 
-    // ScrollTrigger across full page
+    // ScrollTrigger to drive target video time purely by scrollbar position
     const trigger = ScrollTrigger.create({
       start: 0,
       end: "max",
       onUpdate: (self) => {
         if (!video || !video.duration || isNaN(video.duration)) return;
-        targetTime = self.progress * video.duration;
-        requestTick();
+        targetTime = Math.min(
+          video.duration - 0.01,
+          Math.max(0, self.progress * video.duration)
+        );
+        performSeek();
 
         const currentY = window.scrollY;
         const delta = Math.abs(currentY - lastScrollY);
         lastScrollY = currentY;
-        scrollVelocity = Math.min(delta / 12, 3.0);
+        scrollVelocity = Math.min(delta / 10, 3.0);
 
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           scrollVelocity = 0;
-        }, 120);
+        }, 100);
       },
     });
-
-    const onScrollNative = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const maxScroll = Math.max(
-        1,
-        document.documentElement.scrollHeight - window.innerHeight
-      );
-      const progress = Math.min(1, Math.max(0, scrollY / maxScroll));
-
-      if (video && video.duration && !isNaN(video.duration)) {
-        targetTime = progress * video.duration;
-        requestTick();
-      }
-
-      const delta = Math.abs(scrollY - lastScrollY);
-      lastScrollY = scrollY;
-      scrollVelocity = Math.min(delta / 12, 3.0);
-
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        scrollVelocity = 0;
-      }, 120);
-    };
-
-    window.addEventListener("scroll", onScrollNative, { passive: true });
 
     // --- CONTINUOUS LIVING WIND & SWAYING FOLIAGE PARTICLES CANVAS ---
     const canvas = canvasRef.current;
@@ -154,7 +135,7 @@ const InteractiveWave = () => {
       "rgba(255, 255, 255, ", // Pure starlight
     ];
 
-    const particleCount = window.innerWidth < 768 ? 45 : 85;
+    const particleCount = window.innerWidth < 768 ? 40 : 80;
 
     for (let i = 0; i < particleCount; i++) {
       const rand = Math.random();
@@ -177,7 +158,7 @@ const InteractiveWave = () => {
         x,
         baseX: x,
         y,
-        vx: 0.6 + Math.random() * 1.2, // Continuous gentle wind blowing from left to right
+        vx: 0.6 + Math.random() * 1.2,
         vy: -0.3 + (Math.random() - 0.5) * 0.8,
         size,
         alpha: 0.4 + Math.random() * 0.55,
@@ -198,24 +179,24 @@ const InteractiveWave = () => {
       animId = requestAnimationFrame(renderLoop);
       time += 0.02;
 
+      // Keep seeking smoothly if there is remaining target diff
+      performSeek();
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Global living breeze oscillation
       const ambientBreeze = Math.sin(time * 1.2) * 0.5;
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
         p.flapPhase += p.flapSpeed;
-        const currentWind = (p.vx + ambientBreeze + scrollVelocity * 1.5);
+        const currentWind = p.vx + ambientBreeze + scrollVelocity * 1.5;
 
-        // Wind drift & natural organic sway
         p.baseX += currentWind;
         p.x = p.baseX + Math.sin(time * p.oscSpeed * 40 + i) * p.oscRadius;
         p.y += p.vy + Math.cos(time * p.oscSpeed * 30 + i) * 0.8 - scrollVelocity * 0.6;
         p.rotation += p.rotSpeed + (scrollVelocity > 0 ? 0.02 : 0);
 
-        // Seamless wrap around edges
         if (p.x > canvas.width + 40) {
           p.x = -30;
           p.baseX = -30;
@@ -231,7 +212,6 @@ const InteractiveWave = () => {
         const flutter = Math.sin(p.flapPhase);
 
         if (p.type === "leaf") {
-          // Living swaying leaf with wind flutter
           ctx.beginPath();
           ctx.ellipse(0, 0, p.size * (0.6 + 0.4 * flutter), p.size * 1.8, 0, 0, Math.PI * 2);
           ctx.fillStyle = `${p.color}${p.alpha * 0.75})`;
@@ -239,7 +219,6 @@ const InteractiveWave = () => {
           ctx.shadowBlur = 8;
           ctx.fill();
 
-          // Leaf center vein
           ctx.beginPath();
           ctx.moveTo(0, -p.size * 1.4);
           ctx.lineTo(0, p.size * 1.4);
@@ -247,7 +226,6 @@ const InteractiveWave = () => {
           ctx.lineWidth = 1;
           ctx.stroke();
         } else if (p.type === "petal") {
-          // Soft blowing glowing petal
           ctx.beginPath();
           ctx.ellipse(0, 0, p.size * (0.8 + 0.2 * flutter), p.size * 1.5, 0.3, 0, Math.PI * 2);
           ctx.fillStyle = `${p.color}${p.alpha * 0.8})`;
@@ -255,7 +233,6 @@ const InteractiveWave = () => {
           ctx.shadowBlur = 10;
           ctx.fill();
         } else if (p.type === "firefly") {
-          // Bioluminescent pulsing firefly
           const pulse = 0.5 + 0.5 * Math.sin(time * 3 + i);
           const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 2.5);
           grad.addColorStop(0, `${p.color}${p.alpha * pulse})`);
@@ -265,7 +242,6 @@ const InteractiveWave = () => {
           ctx.arc(0, 0, p.size * 2.5, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          // Sharp luminous spore particle
           ctx.beginPath();
           ctx.arc(0, 0, p.size, 0, Math.PI * 2);
           ctx.fillStyle = `${p.color}${p.alpha})`;
@@ -284,19 +260,14 @@ const InteractiveWave = () => {
       cancelAnimationFrame(animId);
       trigger.kill();
       clearTimeout(scrollTimeout);
-      window.removeEventListener("scroll", onScrollNative);
       window.removeEventListener("resize", resizeCanvas);
       video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("seeked", onSeeked);
     };
   }, []);
 
   return (
     <div className="site-video-background-container">
-      {/* 
-        Scroll-controlled background video:
-        - Scrubbing, zoom, and camera movement are controlled purely by scroll
-        - Ambient wind breathing keeps the background scene gently undulating and alive
-      */}
       <div className="site-video-wind-wrapper">
         <video
           ref={videoRef}
@@ -315,10 +286,7 @@ const InteractiveWave = () => {
         </video>
       </div>
 
-      {/* Living animated blowing leaves, fluttering petals, and bioluminescent fireflies */}
       <canvas ref={canvasRef} className="site-video-blast-canvas" />
-
-      {/* Subtle cinematic vignette for typography contrast */}
       <div className="site-video-overlay" />
     </div>
   );

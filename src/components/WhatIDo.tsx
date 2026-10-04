@@ -17,94 +17,6 @@ const WhatIDo = () => {
     const el = sectionRef.current;
     if (!el) return;
 
-    const ctx = gsap.context(() => {
-      const titleChars = el.querySelectorAll<HTMLSpanElement>(".what-char");
-      const titleBadge = el.querySelector<HTMLDivElement>(".what-subtitle");
-      const titleLine = el.querySelector<HTMLDivElement>(".what-title-underline");
-      const serviceCards = el.querySelectorAll<HTMLDivElement>(".what-content");
-
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: el,
-          start: "top 85%",
-          toggleActions: "play none none reverse",
-        },
-      });
-
-      // 1. Subtitle Badge Entrance
-      if (titleBadge) {
-        tl.fromTo(
-          titleBadge,
-          { opacity: 0, y: -20, filter: "blur(6px)" },
-          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }
-        );
-      }
-
-      // 2. Cinematic 3D Letter-by-Letter Stagger Animation
-      if (titleChars.length) {
-        tl.fromTo(
-          titleChars,
-          {
-            opacity: 0,
-            y: 45,
-            rotateX: -40,
-            rotateY: 20,
-            scale: 0.75,
-            filter: "blur(10px)",
-            transformOrigin: "bottom center",
-          },
-          {
-            opacity: 1,
-            y: 0,
-            rotateX: 0,
-            rotateY: 0,
-            scale: 1,
-            filter: "blur(0px)",
-            duration: 0.75,
-            stagger: 0.04,
-            ease: "back.out(1.5)",
-          },
-          "-=0.3"
-        );
-      }
-
-      // 3. Glowing Neon Accent Line Expand
-      if (titleLine) {
-        tl.fromTo(
-          titleLine,
-          { scaleX: 0, opacity: 0, transformOrigin: "left center" },
-          { scaleX: 1, opacity: 1, duration: 0.6, ease: "power2.out" },
-          "-=0.45"
-        );
-      }
-
-      // 4. Service Boxes Reveal
-      if (serviceCards.length) {
-        tl.fromTo(
-          serviceCards,
-          {
-            x: 60,
-            y: 35,
-            opacity: 0,
-            scale: 0.92,
-            filter: "blur(8px)",
-          },
-          {
-            x: 0,
-            y: 0,
-            opacity: 1,
-            scale: 1,
-            filter: "blur(0px)",
-            duration: 0.65,
-            stagger: 0.12,
-            ease: "power3.out",
-            clearProps: "transform",
-          },
-          "-=0.4"
-        );
-      }
-    }, el);
-
     if (ScrollTrigger.isTouch) {
       containerRef.current.forEach((container) => {
         if (container) {
@@ -115,7 +27,6 @@ const WhatIDo = () => {
     }
 
     return () => {
-      ctx.revert();
       containerRef.current.forEach((container) => {
         if (container) {
           container.removeEventListener("click", () => handleClick(container));
@@ -127,27 +38,15 @@ const WhatIDo = () => {
   return (
     <div className="whatIDO" id="what-i-do" ref={sectionRef}>
       <div className="what-box">
-        <div className="what-title-container">
+        <div className="what-title-wrap">
           <div className="what-subtitle">
             <span className="what-badge-dot"></span>
             SERVICES &amp; EXPERTISE
           </div>
-          <h2 className="title what-kinetic-title">
-            <div className="what-word word-what">
-              {"WHAT".split("").map((char, i) => (
-                <span key={`w-${i}`} className="what-char">
-                  {char}
-                </span>
-              ))}
-            </div>
-            <div className="what-word word-ido">
-              <span className="what-char char-i">I</span>
-              <span className="what-char-space">&nbsp;</span>
-              {"DO".split("").map((char, i) => (
-                <span key={`do-${i}`} className="what-char char-do">
-                  {char}
-                </span>
-              ))}
+          <h2 className="title">
+            W<span className="hat-h2">HAT</span>
+            <div>
+              I<span className="do-h2"> DO</span>
             </div>
           </h2>
           <div className="what-title-underline"></div>
