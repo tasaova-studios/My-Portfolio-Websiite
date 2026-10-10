@@ -7,24 +7,30 @@ interface SkillBall {
   vx: number;
   vy: number;
   radius: number;
+  baseRadius: number;
   label: string;
   color1: string;
   color2: string;
+  glowColor: string;
   textColor: string;
   mass: number;
+  squish: number; // deformation factor for squishy bounce
+  floatPhase: number;
+  floatSpeed: number;
 }
 
 const SKILLS_DATA = [
-  { label: "Blender", color1: "#ea7600", color2: "#221400", textColor: "#ffffff", radius: 46 },
-  { label: "Unity", color1: "#ffffff", color2: "#222222", textColor: "#000000", radius: 45 },
-  { label: "C#", color1: "#9b4f96", color2: "#2d1230", textColor: "#ffffff", radius: 42 },
-  { label: "Product Viz", color1: "#38bdf8", color2: "#0c4a6e", textColor: "#ffffff", radius: 46 },
-  { label: "3D Renders", color1: "#f43f5e", color2: "#4c0519", textColor: "#ffffff", radius: 44 },
-  { label: "AI Workflow", color1: "#00dfd8", color2: "#003240", textColor: "#ffffff", radius: 45 },
-  { label: "Game Assets", color1: "#f59e0b", color2: "#451a03", textColor: "#ffffff", radius: 44 },
-  { label: "Low-Poly", color1: "#8b5cf6", color2: "#2e1065", textColor: "#ffffff", radius: 42 },
-  { label: "3D Anime", color1: "#ec4899", color2: "#500724", textColor: "#ffffff", radius: 42 },
-  { label: "Optimized", color1: "#10b981", color2: "#064e3b", textColor: "#ffffff", radius: 42 },
+  { label: "Blender", color1: "#ff8c1a", color2: "#d95000", glowColor: "rgba(255, 140, 26, 0.6)", textColor: "#ffffff", radius: 55 },
+  { label: "Unity 3D", color1: "#f1f5f9", color2: "#334155", glowColor: "rgba(255, 255, 255, 0.5)", textColor: "#0f172a", radius: 54 },
+  { label: "C#", color1: "#c084fc", color2: "#7e22ce", glowColor: "rgba(192, 132, 252, 0.6)", textColor: "#ffffff", radius: 48 },
+  { label: "Product Viz", color1: "#38bdf8", color2: "#0284c7", glowColor: "rgba(56, 189, 248, 0.65)", textColor: "#ffffff", radius: 56 },
+  { label: "3D Renders", color1: "#fb7185", color2: "#e11d48", glowColor: "rgba(251, 113, 133, 0.65)", textColor: "#ffffff", radius: 54 },
+  { label: "Website Dev", color1: "#06b6d4", color2: "#0e7490", glowColor: "rgba(6, 182, 212, 0.65)", textColor: "#ffffff", radius: 55 },
+  { label: "AI Tools", color1: "#2dd4bf", color2: "#0f766e", glowColor: "rgba(45, 212, 191, 0.65)", textColor: "#ffffff", radius: 52 },
+  { label: "Game Dev", color1: "#fbbf24", color2: "#d97706", glowColor: "rgba(251, 191, 36, 0.65)", textColor: "#ffffff", radius: 53 },
+  { label: "Low-Poly", color1: "#a78bfa", color2: "#6d28d9", glowColor: "rgba(167, 139, 250, 0.6)", textColor: "#ffffff", radius: 50 },
+  { label: "3D Anime", color1: "#f472b6", color2: "#db2777", glowColor: "rgba(244, 114, 182, 0.65)", textColor: "#ffffff", radius: 51 },
+  { label: "Optimized", color1: "#34d399", color2: "#059669", glowColor: "rgba(52, 211, 153, 0.65)", textColor: "#ffffff", radius: 52 },
 ];
 
 const SkillsBalls = () => {
@@ -42,34 +48,52 @@ const SkillsBalls = () => {
     let width = (canvas.width = container.clientWidth);
     let height = (canvas.height = container.clientHeight);
 
-    const getScale = (w: number) => (w < 480 ? 0.68 : w < 768 ? 0.82 : 1);
+    const getScale = (w: number) => (w < 480 ? 0.68 : w < 768 ? 0.84 : 1.05);
 
-    // Initialize Balls with random positions & velocities
-    const balls: SkillBall[] = SKILLS_DATA.map((item) => {
+    // Initial positioning in a playful distributed cloud so the whole box is nicely filled
+    const balls: SkillBall[] = SKILLS_DATA.map((item, idx) => {
       const scale = getScale(width);
       const radius = Math.round(item.radius * scale);
+      
+      // Distribute evenly across rows and columns
+      const cols = 4;
+      const row = Math.floor(idx / cols);
+      const col = idx % cols;
+      const cellW = (width - radius * 2) / cols;
+      const cellH = (height - radius * 2) / 3.5;
+
+      const initX = radius + col * cellW + Math.random() * (cellW * 0.7);
+      const initY = radius + row * cellH + Math.random() * (cellH * 0.7);
+
       return {
-        x: radius + Math.random() * (width - radius * 2),
-        y: radius + Math.random() * (height - radius * 2),
-        vx: (Math.random() - 0.5) * 2.5,
-        vy: (Math.random() - 0.5) * 2.5,
+        x: Math.max(radius, Math.min(width - radius, initX)),
+        y: Math.max(radius, Math.min(height - radius, initY)),
+        vx: (Math.random() - 0.5) * 1.8,
+        vy: (Math.random() - 0.5) * 1.8,
         radius,
+        baseRadius: radius,
         label: item.label,
         color1: item.color1,
         color2: item.color2,
+        glowColor: item.glowColor,
         textColor: item.textColor,
-        mass: radius,
+        mass: radius * 0.8,
+        squish: 1,
+        floatPhase: Math.random() * Math.PI * 2,
+        floatSpeed: 0.015 + Math.random() * 0.02,
       };
     });
 
-    // Mouse / Touch Interaction State
-    const mouse = {
-      x: -1000,
-      y: -1000,
+    // Mouse & Touch interaction state
+    const pointer = {
+      x: -2000,
+      y: -2000,
       isDown: false,
       draggedBall: null as SkillBall | null,
       prevX: 0,
       prevY: 0,
+      vx: 0,
+      vy: 0,
     };
 
     const getCanvasPos = (clientX: number, clientY: number) => {
@@ -80,155 +104,166 @@ const SkillsBalls = () => {
       };
     };
 
-    const onMouseDown = (e: MouseEvent) => {
-      const pos = getCanvasPos(e.clientX, e.clientY);
-      mouse.isDown = true;
-      mouse.x = pos.x;
-      mouse.y = pos.y;
-      mouse.prevX = pos.x;
-      mouse.prevY = pos.y;
+    const handlePointerDown = (clientX: number, clientY: number) => {
+      const pos = getCanvasPos(clientX, clientY);
+      pointer.isDown = true;
+      pointer.x = pos.x;
+      pointer.y = pos.y;
+      pointer.prevX = pos.x;
+      pointer.prevY = pos.y;
+      pointer.vx = 0;
+      pointer.vy = 0;
 
-      // Check if clicking inside a ball
+      // Find nearest ball to drag or tap-impulse
       for (let i = balls.length - 1; i >= 0; i--) {
         const b = balls[i];
         const dist = Math.hypot(b.x - pos.x, b.y - pos.y);
-        if (dist <= b.radius) {
-          mouse.draggedBall = b;
+        if (dist <= b.radius * 1.1) {
+          pointer.draggedBall = b;
+          b.squish = 0.86; // cute squish on touch!
           break;
         }
       }
     };
 
-    const onMouseMove = (e: MouseEvent) => {
-      const pos = getCanvasPos(e.clientX, e.clientY);
-      mouse.x = pos.x;
-      mouse.y = pos.y;
+    const handlePointerMove = (clientX: number, clientY: number) => {
+      const pos = getCanvasPos(clientX, clientY);
+      pointer.vx = (pos.x - pointer.prevX) * 0.9;
+      pointer.vy = (pos.y - pointer.prevY) * 0.9;
+      pointer.x = pos.x;
+      pointer.y = pos.y;
+      pointer.prevX = pos.x;
+      pointer.prevY = pos.y;
 
-      if (mouse.draggedBall) {
-        mouse.draggedBall.vx = (pos.x - mouse.prevX) * 0.8;
-        mouse.draggedBall.vy = (pos.y - mouse.prevY) * 0.8;
-        mouse.draggedBall.x = pos.x;
-        mouse.draggedBall.y = pos.y;
-        mouse.prevX = pos.x;
-        mouse.prevY = pos.y;
+      if (pointer.draggedBall) {
+        pointer.draggedBall.vx = pointer.vx * 1.2;
+        pointer.draggedBall.vy = pointer.vy * 1.2;
+        pointer.draggedBall.x = pos.x;
+        pointer.draggedBall.y = pos.y;
       }
     };
 
-    const onMouseUp = () => {
-      mouse.isDown = false;
-      mouse.draggedBall = null;
+    const handlePointerUp = () => {
+      if (pointer.draggedBall) {
+        // Fling with lively momentum
+        pointer.draggedBall.vx = Math.max(-14, Math.min(14, pointer.vx * 1.4));
+        pointer.draggedBall.vy = Math.max(-14, Math.min(14, pointer.vy * 1.4));
+        pointer.draggedBall.squish = 1.15;
+      }
+      pointer.isDown = false;
+      pointer.draggedBall = null;
     };
 
-    // Touch events for mobile
+    // Event listeners
+    const onMouseDown = (e: MouseEvent) => handlePointerDown(e.clientX, e.clientY);
+    const onMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX, e.clientY);
+    const onMouseUp = () => handlePointerUp();
+
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        const pos = getCanvasPos(touch.clientX, touch.clientY);
-        mouse.isDown = true;
-        mouse.x = pos.x;
-        mouse.y = pos.y;
-        mouse.prevX = pos.x;
-        mouse.prevY = pos.y;
-
-        for (let i = balls.length - 1; i >= 0; i--) {
-          const b = balls[i];
-          if (Math.hypot(b.x - pos.x, b.y - pos.y) <= b.radius) {
-            mouse.draggedBall = b;
-            break;
-          }
-        }
+        handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
-
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        const pos = getCanvasPos(touch.clientX, touch.clientY);
-        mouse.x = pos.x;
-        mouse.y = pos.y;
-
-        if (mouse.draggedBall) {
-          mouse.draggedBall.vx = (pos.x - mouse.prevX) * 0.8;
-          mouse.draggedBall.vy = (pos.y - mouse.prevY) * 0.8;
-          mouse.draggedBall.x = pos.x;
-          mouse.draggedBall.y = pos.y;
-          mouse.prevX = pos.x;
-          mouse.prevY = pos.y;
-        }
+        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
+    const onTouchEnd = () => handlePointerUp();
 
     canvas.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onMouseUp);
+    window.addEventListener("touchend", onTouchEnd);
 
     const onResize = () => {
       width = canvas.width = container.clientWidth;
       height = canvas.height = container.clientHeight;
       const scale = getScale(width);
       balls.forEach((b, i) => {
-        b.radius = Math.round(SKILLS_DATA[i].radius * scale);
-        b.mass = b.radius;
+        b.baseRadius = Math.round(SKILLS_DATA[i].radius * scale);
+        b.radius = b.baseRadius;
+        b.mass = b.radius * 0.8;
       });
     };
     window.addEventListener("resize", onResize);
 
-    // Physics Animation Loop
+    // Physics parameters for cute, lightweight, buoyant drifting ("halka & pore nore berano")
     let animId: number;
-    const gravity = 0.08;
-    const damping = 0.985;
-    const bounce = 0.82;
+    const damping = 0.994; // very low friction so they glide effortlessly across the arena
+    const bounce = 0.92;  // high elasticity for joyful, cute ricochets
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
 
       ctx.clearRect(0, 0, width, height);
 
-      // Update positions & physics
+      // 1. Update ball positions & playful buoyant physics
       for (let i = 0; i < balls.length; i++) {
         const b = balls[i];
 
-        if (b !== mouse.draggedBall) {
-          b.vy += gravity;
+        // Cute squish recovery spring
+        b.squish += (1 - b.squish) * 0.12;
+
+        if (b !== pointer.draggedBall) {
+          // Zero-G ambient floating breeze: gentle wandering oscillation so balls drift freely
+          b.floatPhase += b.floatSpeed;
+          const ambientDriftX = Math.cos(b.floatPhase) * 0.045;
+          const ambientDriftY = Math.sin(b.floatPhase * 0.8) * 0.045;
+
+          b.vx += ambientDriftX;
+          b.vy += ambientDriftY;
+
+          // Low damping preserves lightweight gliding motion
           b.vx *= damping;
           b.vy *= damping;
 
-          // Mouse gentle repulsion if hovered nearby
-          if (!mouse.isDown) {
-            const distMouse = Math.hypot(b.x - mouse.x, b.y - mouse.y);
-            if (distMouse < b.radius + 60 && distMouse > 0) {
-              const force = (1 - distMouse / (b.radius + 60)) * 2;
-              b.vx += ((b.x - mouse.x) / distMouse) * force;
-              b.vy += ((b.y - mouse.y) / distMouse) * force;
-            }
+          // Hyper-reactive touch/cursor breeze ("touch korate nore nore berai puro")
+          // Even a passing touch or cursor hover sends balls gliding away joyfully!
+          const distPointer = Math.hypot(b.x - pointer.x, b.y - pointer.y);
+          const pushRadius = b.radius + 95;
+
+          if (distPointer < pushRadius && distPointer > 0) {
+            const proximityFactor = Math.pow(1 - distPointer / pushRadius, 1.3);
+            const pushMagnitude = pointer.isDown ? 5.5 : 3.8;
+            const nx = (b.x - pointer.x) / distPointer;
+            const ny = (b.y - pointer.y) / distPointer;
+
+            b.vx += nx * proximityFactor * pushMagnitude;
+            b.vy += ny * proximityFactor * pushMagnitude;
+            b.squish = Math.max(0.88, 1 - proximityFactor * 0.15); // subtle reactive squish
           }
 
+          // Advance position
           b.x += b.vx;
           b.y += b.vy;
 
-          // Boundary collisions
-          if (b.x - b.radius < 0) {
-            b.x = b.radius;
+          // Arena boundary collisions with bouncy reflections & cute squish
+          if (b.x - b.radius < 4) {
+            b.x = b.radius + 4;
             b.vx = -b.vx * bounce;
-          } else if (b.x + b.radius > width) {
-            b.x = width - b.radius;
+            b.squish = 0.88;
+          } else if (b.x + b.radius > width - 4) {
+            b.x = width - b.radius - 4;
             b.vx = -b.vx * bounce;
+            b.squish = 0.88;
           }
 
-          if (b.y - b.radius < 0) {
-            b.y = b.radius;
+          if (b.y - b.radius < 4) {
+            b.y = b.radius + 4;
             b.vy = -b.vy * bounce;
-          } else if (b.y + b.radius > height) {
-            b.y = height - b.radius;
+            b.squish = 0.88;
+          } else if (b.y + b.radius > height - 4) {
+            b.y = height - b.radius - 4;
             b.vy = -b.vy * bounce;
+            b.squish = 0.88;
           }
         }
       }
 
-      // Ball-to-Ball Elastic Collisions
+      // 2. Ball-to-Ball Elastic Collisions
       for (let i = 0; i < balls.length; i++) {
         for (let j = i + 1; j < balls.length; j++) {
           const b1 = balls[i];
@@ -240,16 +275,16 @@ const SkillsBalls = () => {
           const minDist = b1.radius + b2.radius;
 
           if (dist < minDist && dist > 0) {
-            // Overlap resolution
-            const overlap = (minDist - dist) / 2;
+            const overlap = (minDist - dist) * 0.5;
             const nx = dx / dist;
             const ny = dy / dist;
 
-            if (b1 !== mouse.draggedBall) {
+            // Separate overlapping balls
+            if (b1 !== pointer.draggedBall) {
               b1.x -= nx * overlap;
               b1.y -= ny * overlap;
             }
-            if (b2 !== mouse.draggedBall) {
+            if (b2 !== pointer.draggedBall) {
               b2.x += nx * overlap;
               b2.y += ny * overlap;
             }
@@ -257,84 +292,138 @@ const SkillsBalls = () => {
             // Elastic impulse
             const kx = b1.vx - b2.vx;
             const ky = b1.vy - b2.vy;
-            const p = 2 * (nx * kx + ny * ky) / (b1.mass + b2.mass);
+            const p = (2 * (nx * kx + ny * ky)) / (b1.mass + b2.mass);
 
-            if (b1 !== mouse.draggedBall) {
+            if (b1 !== pointer.draggedBall) {
               b1.vx -= p * b2.mass * nx * bounce;
               b1.vy -= p * b2.mass * ny * bounce;
+              b1.squish = 0.9;
             }
-            if (b2 !== mouse.draggedBall) {
+            if (b2 !== pointer.draggedBall) {
               b2.vx += p * b1.mass * nx * bounce;
               b2.vy += p * b1.mass * ny * bounce;
+              b2.squish = 0.9;
             }
           }
         }
       }
 
-      // Draw Balls with 3D spherical gradient & glowing labels
+      // 3. Render Cute 3D Glassy Bubble Spheres
       for (let i = 0; i < balls.length; i++) {
         const b = balls[i];
+        const isHovered = b === pointer.draggedBall || Math.hypot(b.x - pointer.x, b.y - pointer.y) < b.radius;
 
-        // 3D Sphere Radial Gradient
-        const grad = ctx.createRadialGradient(
-          b.x - b.radius * 0.35,
-          b.y - b.radius * 0.35,
-          b.radius * 0.1,
-          b.x,
-          b.y,
+        ctx.save();
+        ctx.translate(b.x, b.y);
+
+        // Apply squish scale
+        const scaleX = b.squish;
+        const scaleY = 2 - b.squish;
+        ctx.scale(scaleX, scaleY);
+
+        // 1. Soft Vibrant Ambient Outer Glow
+        ctx.shadowColor = b.glowColor;
+        ctx.shadowBlur = isHovered ? 34 : 18;
+
+        // 2. Rich 3D Spherical Radial Body Gradient
+        const bodyGrad = ctx.createRadialGradient(
+          -b.radius * 0.35,
+          -b.radius * 0.35,
+          b.radius * 0.08,
+          0,
+          0,
           b.radius
         );
-        grad.addColorStop(0, b.color1);
-        grad.addColorStop(0.7, b.color2);
-        grad.addColorStop(1, "#050306");
-
-        // Outer glow
-        ctx.save();
-        ctx.shadowColor = b.color1;
-        ctx.shadowBlur = b === mouse.draggedBall ? 25 : 12;
+        bodyGrad.addColorStop(0, b.color1);
+        bodyGrad.addColorStop(0.65, b.color2);
+        bodyGrad.addColorStop(1, "#0d0814");
 
         ctx.beginPath();
-        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
+        ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = bodyGrad;
         ctx.fill();
-        ctx.restore();
 
-        // Subtle specular rim highlight
+        // 3. Crisp Inner Glass Rim Highlight
+        ctx.shadowBlur = 0; // reset shadow for crisp inner details
         ctx.beginPath();
-        ctx.arc(b.x, b.y, b.radius - 1, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-        ctx.lineWidth = 1.5;
+        ctx.arc(0, 0, b.radius - 1.5, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Sphere specular glint
+        // 4. Cute Big Jelly Specular Highlight (top-left glossy curved shine)
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(
-          b.x - b.radius * 0.35,
-          b.y - b.radius * 0.35,
-          b.radius * 0.2,
+        ctx.ellipse(
+          -b.radius * 0.32,
+          -b.radius * 0.38,
+          b.radius * 0.45,
+          b.radius * 0.22,
+          -Math.PI / 4.5,
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+        const glintGrad = ctx.createLinearGradient(
+          -b.radius * 0.32,
+          -b.radius * 0.5,
+          -b.radius * 0.32,
+          -b.radius * 0.2
+        );
+        glintGrad.addColorStop(0, "rgba(255, 255, 255, 0.85)");
+        glintGrad.addColorStop(0.6, "rgba(255, 255, 255, 0.35)");
+        glintGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = glintGrad;
+        ctx.fill();
+        ctx.restore();
+
+        // 5. Cute Small Secondary Rim Glint (bottom-right edge bounce light)
+        ctx.beginPath();
+        ctx.arc(
+          b.radius * 0.28,
+          b.radius * 0.28,
+          b.radius * 0.14,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
         ctx.fill();
 
-        // Label text inside ball
+        // 6. Cute Micro Sparkle Dot (extra kawaii touch!)
+        ctx.beginPath();
+        ctx.arc(
+          -b.radius * 0.52,
+          -b.radius * 0.16,
+          Math.max(2, b.radius * 0.045),
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.fill();
+
+        // 7. Typography (Crisp, High-Contrast Label with Drop Shadow)
+        ctx.shadowColor = "rgba(0, 0, 0, 0.75)";
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+
         const words = b.label.split(" ");
         if (words.length === 2) {
-          const fontSize = Math.max(10, Math.floor(b.radius * 0.28));
-          ctx.font = `700 ${fontSize}px Geist, sans-serif`;
+          const fontSize = Math.max(12, Math.floor(b.radius * 0.27));
+          ctx.font = `800 ${fontSize}px 'Plus Jakarta Sans', sans-serif`;
           ctx.fillStyle = b.textColor;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(words[0], b.x, b.y - fontSize * 0.58);
-          ctx.fillText(words[1], b.x, b.y + fontSize * 0.58);
+          ctx.fillText(words[0], 0, -fontSize * 0.56);
+          ctx.fillText(words[1], 0, fontSize * 0.58);
         } else {
-          ctx.font = `700 ${Math.max(12, Math.floor(b.radius * 0.35))}px Geist, sans-serif`;
+          const fontSize = Math.max(13, Math.floor(b.radius * 0.31));
+          ctx.font = `800 ${fontSize}px 'Plus Jakarta Sans', sans-serif`;
           ctx.fillStyle = b.textColor;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(b.label, b.x, b.y);
+          ctx.fillText(b.label, 0, 2);
         }
+
+        ctx.restore();
       }
     };
 
@@ -347,7 +436,7 @@ const SkillsBalls = () => {
       window.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onMouseUp);
+      window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("resize", onResize);
     };
   }, []);
@@ -359,7 +448,7 @@ const SkillsBalls = () => {
           <span>Interactive Skills Arena</span>
         </div>
         <div className="skills-balls-hint">
-          Drag, throw, or push the tech spheres
+          Touch, drag, or push the weightless skill spheres
         </div>
       </div>
       <canvas ref={canvasRef} className="skills-balls-canvas" />

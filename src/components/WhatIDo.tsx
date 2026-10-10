@@ -5,9 +5,33 @@ import gsap from "gsap";
 
 gsap.registerPlugin(ScrollTrigger);
 
+interface SparkleParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  alpha: number;
+  color: string;
+  isStar: boolean;
+  rotation: number;
+  rotSpeed: number;
+}
+
+const FAIRY_COLORS = [
+  "#ffd700", // Starlight Gold
+  "#38bdf8", // Electric Cyan
+  "#f472b6", // Cosmic Pink
+  "#c084fc", // Radiant Violet
+  "#34d399", // Emerald Aurora
+  "#ffffff", // Diamond White
+];
+
 const WhatIDo = () => {
   const containerRef = useRef<(HTMLDivElement | null)[]>([]);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const titleWrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const setRef = (el: HTMLDivElement | null, index: number) => {
     containerRef.current[index] = el;
@@ -15,7 +39,165 @@ const WhatIDo = () => {
 
   useEffect(() => {
     const el = sectionRef.current;
-    if (!el) return;
+    const titleWrap = titleWrapRef.current;
+    const canvas = canvasRef.current;
+    if (!el || !titleWrap || !canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let width = (canvas.width = titleWrap.clientWidth + 100);
+    let height = (canvas.height = titleWrap.clientHeight + 140);
+
+    const onResize = () => {
+      width = canvas.width = titleWrap.clientWidth + 100;
+      height = canvas.height = titleWrap.clientHeight + 140;
+    };
+    window.addEventListener("resize", onResize);
+
+    const particles: SparkleParticle[] = [];
+
+    // Helper to add upward rising fairy stars
+    const spawnStar = (customX?: number, customY?: number, isBurst = false) => {
+      const isStarShape = Math.random() < 0.55;
+      const chosenColor = FAIRY_COLORS[Math.floor(Math.random() * FAIRY_COLORS.length)];
+      const spawnX = customX !== undefined ? customX : Math.random() * width;
+      const spawnY = customY !== undefined ? customY : height - 20 + (Math.random() - 0.5) * 30;
+
+      particles.push({
+        x: spawnX,
+        y: spawnY,
+        vx: (Math.random() - 0.5) * (isBurst ? 3.5 : 1.6),
+        vy: -1.4 - Math.random() * (isBurst ? 3.5 : 2.2), // float upwards
+        size: isStarShape ? 3.2 + Math.random() * 2.8 : 2.2 + Math.random() * 2.4,
+        alpha: 1,
+        color: chosenColor,
+        isStar: isStarShape,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.1,
+      });
+    };
+
+    // Burst fountain when title scrolls into view
+    const triggerStarFountain = () => {
+      for (let i = 0; i < 35; i++) {
+        spawnStar(width * 0.2 + Math.random() * (width * 0.6), height - 30 + Math.random() * 30, true);
+      }
+    };
+
+    // GSAP ScrollTrigger Entrance: Upward float with blur-to-crisp reveal
+    const gsapCtx = gsap.context(() => {
+      const cards = el.querySelectorAll<HTMLDivElement>(".what-content");
+
+      // Animate title upwards into view
+      gsap.from(titleWrap, {
+        scrollTrigger: {
+          trigger: el,
+          start: "top 82%",
+          toggleActions: "play none none reverse",
+          onEnter: () => triggerStarFountain(),
+        },
+        y: 65,
+        opacity: 0,
+        filter: "blur(8px)",
+        duration: 0.9,
+        ease: "power3.out",
+        clearProps: "all",
+      });
+
+      // Animate service cards upwards
+      if (cards.length) {
+        gsap.from(cards, {
+          scrollTrigger: {
+            trigger: el,
+            start: "top 78%",
+            toggleActions: "play none none reverse",
+          },
+          y: 55,
+          opacity: 0,
+          filter: "blur(6px)",
+          duration: 0.8,
+          stagger: 0.14,
+          ease: "power3.out",
+          clearProps: "all",
+        });
+      }
+    }, el);
+
+    // Mouse interactive star spray over title
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      if (mx >= 0 && mx <= width && my >= 0 && my <= height) {
+        for (let i = 0; i < 2; i++) {
+          spawnStar(mx + (Math.random() - 0.5) * 20, my + (Math.random() - 0.5) * 15, false);
+        }
+      }
+    };
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+
+    // Animation loop for rising stars
+    let animId: number;
+    const renderLoop = () => {
+      animId = requestAnimationFrame(renderLoop);
+
+      // Ambient upward rising stardust
+      if (Math.random() < 0.28) {
+        spawnStar(width * 0.1 + Math.random() * (width * 0.8), height - 25);
+      }
+
+      ctx.clearRect(0, 0, width, height);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotSpeed;
+        p.vy *= 0.985;
+        p.vx *= 0.985;
+        p.alpha -= 0.012;
+
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.globalAlpha = Math.max(0, p.alpha);
+
+        if (p.isStar) {
+          // Glowing ✦ star
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 12;
+
+          const r = p.size;
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 1.6);
+          ctx.quadraticCurveTo(0, 0, r * 1.6, 0);
+          ctx.quadraticCurveTo(0, 0, 0, r * 1.6);
+          ctx.quadraticCurveTo(0, 0, -r * 1.6, 0);
+          ctx.quadraticCurveTo(0, 0, 0, -r * 1.6);
+          ctx.fill();
+        } else {
+          // Luminous celestial orb
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 9;
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    };
+
+    renderLoop();
 
     if (ScrollTrigger.isTouch) {
       containerRef.current.forEach((container) => {
@@ -27,6 +209,10 @@ const WhatIDo = () => {
     }
 
     return () => {
+      cancelAnimationFrame(animId);
+      gsapCtx.revert();
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("mousemove", onMouseMove);
       containerRef.current.forEach((container) => {
         if (container) {
           container.removeEventListener("click", () => handleClick(container));
@@ -38,7 +224,9 @@ const WhatIDo = () => {
   return (
     <div className="whatIDO" id="what-i-do" ref={sectionRef}>
       <div className="what-box">
-        <div className="what-title-wrap">
+        <div className="what-title-wrap" ref={titleWrapRef}>
+          <canvas ref={canvasRef} className="what-sparkle-canvas" />
+
           <div className="what-subtitle">
             <span className="what-badge-dot"></span>
             SERVICES &amp; EXPERTISE

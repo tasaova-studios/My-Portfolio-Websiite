@@ -29,6 +29,17 @@
   position: relative;
   margin-right: 8%;
   margin-bottom: 20px;
+  z-index: 2;
+}
+
+.what-sparkle-canvas {
+  position: absolute;
+  top: -70px;
+  left: -50px;
+  width: calc(100% + 100px);
+  height: calc(100% + 140px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .what-subtitle {

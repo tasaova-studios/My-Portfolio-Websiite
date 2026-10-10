@@ -8,6 +8,8 @@ import Landing from "./Landing";
 import Navbar from "./Navbar";
 import SocialIcons from "./SocialIcons";
 import WhatIDo from "./WhatIDo";
+import ButterflyFlight from "./ButterflyFlight";
+import FuturisticBoxTrace from "./FuturisticBoxTrace";
 import setSplitText from "./utils/splitText";
 
 const MainContainer = ({ children }: PropsWithChildren) => {
@@ -32,6 +34,8 @@ const MainContainer = ({ children }: PropsWithChildren) => {
       <Cursor />
       <Navbar />
       <SocialIcons />
+      <ButterflyFlight />
+      <FuturisticBoxTrace />
 
       {/* Interactive 3D Wave Canvas in background */}
       {children}
